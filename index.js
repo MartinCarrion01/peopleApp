@@ -1,9 +1,11 @@
 const express = require("express");
 let people = require("./people");
 const morgan = require("morgan");
+const cors = require("cors");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 morgan.token("requestParams", (req) => JSON.stringify(req.body));
@@ -74,5 +76,8 @@ const personFinder = (name) => {
     return false;
   }
 };
-const PORT = 3001;
-app.listen(PORT, () => console.log("Listening on", PORT));
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
