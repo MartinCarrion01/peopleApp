@@ -1,7 +1,9 @@
+require("dotenv").config();
 const express = require("express");
-let people = require("./people");
 const morgan = require("morgan");
 const cors = require("cors");
+const errorHandlers = require("./errorHandlers");
+const Person = require("./models/person");
 
 const app = express();
 
@@ -15,13 +17,22 @@ const morganFormat =
 app.use(morgan(morganFormat));
 
 app.get("/api/people", (req, res) => {
-  res.status(200).json(people);
+  Person.find({}).then((people) => {
+    res.status(200).json(people);
+  });
 });
 
-app.get("/api/people/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = people.find((person) => person.id === id);
-  person ? res.status(200).json(person) : res.status(400).end();
+app.get("/api/people/:id", (req, res, next) => {
+  const id = req.params.id;
+  Person.findById(id)
+    .then((person) => {
+      if (person) {
+        res.status(200).json(person);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
 app.post("/api/people", (req, res) => {
@@ -33,26 +44,43 @@ app.post("/api/people", (req, res) => {
       .status(400)
       .json({ error: "Bad request, number or name missing" });
   }
-  if (personFinder(body.name)) {
-    return res.status(400).json({ error: `${body.name} already added` });
-  }
-  const person = {
+  // if (personFinder(body.name)) {
+  //   return res.status(400).json({ error: `${body.name} already added` });
+  // }
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: Math.floor(100000000 + Math.random() * 900000000),
-  };
-  people = people.concat(person);
-  res.status(201).json(person);
+  });
+  person.save().then((savedPerson) => {
+    res.status(201).json(savedPerson);
+  });
 });
 
-app.delete("/api/people/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = people.find((person) => person.id === id);
-  if (!person) {
-    return res.status(400).end();
-  }
-  people = people.filter((person) => person.id !== id);
-  res.status(204).end();
+app.delete("/api/people/:id", (req, res, next) => {
+  const id = req.params.id;
+  Person.findByIdAndDelete(id)
+    .then((person) => {
+      if (person) {
+        res.status(204).end();
+      } else {
+        res.status(400).end();
+      }
+    })
+    .catch((err) => next(err));
+});
+
+app.put("/api/people/:id", (req, res, next) => {
+  const body = req.body;
+
+  const person = {
+    number: body.number,
+  };
+
+  Person.findByIdAndUpdate(req.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      res.json(updatedPerson);
+    })
+    .catch((err) => next(err));
 });
 
 app.get("/api/people/info", (req, res) => {
@@ -65,9 +93,9 @@ app.get("/api/people/info", (req, res) => {
   );
 });
 
-app.use((req, res) => {
-  res.status(404).json({ error: "Unknown endpoint" });
-});
+app.use(errorHandlers.badRouteHandler);
+
+app.use(errorHandlers.errorHandler);
 
 const personFinder = (name) => {
   const person = people.find((person) => person.name === name);
