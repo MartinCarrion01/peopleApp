@@ -35,7 +35,7 @@ app.get("/api/people/:id", (req, res, next) => {
     .catch((error) => next(error));
 });
 
-app.post("/api/people", (req, res) => {
+app.post("/api/people", (req, res, next) => {
   const body = req.body;
   console.log("body", body);
   if (!body.name || !body.number) {
@@ -53,7 +53,7 @@ app.post("/api/people", (req, res) => {
   });
   person.save().then((savedPerson) => {
     res.status(201).json(savedPerson);
-  });
+  }).catch(err => next(err));
 });
 
 app.delete("/api/people/:id", (req, res, next) => {
